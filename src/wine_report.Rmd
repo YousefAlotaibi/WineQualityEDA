@@ -1,0 +1,161 @@
+---
+title: "Red Wine EDA Report"
+author: "Yousef Alotaibi"
+date: '2022-06-14'
+knit: (function(input, ...) {
+    rmarkdown::render(
+      input,
+      output_dir = "../"
+    )
+  })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# Libraries
+library(tidyverse)
+library("janitor")
+library(reshape2)
+library(caret) # for multiple box plot
+library("PerformanceAnalytics") # Correlation matrix
+library(here)
+library(scales)
+library(DT)
+
+# reading the dataset
+wineRed <- read_csv(here('data/winequality-red-kaggle.csv'))
+
+```
+
+## Atrributes description 
++--------------------+---------------+----------------------------------------------+
+|Variable            |Type           |    Description                               |
++====================+===============+==============================================+
+| fixed_acidity      |    Double     | most acids involved with wine or fixed or    |
+|                    |               | nonvolatile (do not evaporate readily)       |
++--------------------+---------------+----------------------------------------------+
+|Voltaile_acidity    |    Double     | the amount of acetic acid in wine, which at too high of levels can lead to an unpleasant, vinegar taste|
+|                    |               |                                              |
++--------------------+---------------+----------------------------------------------+
+| citric_acid        |    Double     | found in small quantities, citric acid can add 'freshness' and flavor to wines|
+|                    |               |                                              |
++--------------------+---------------+----------------------------------------------+
+|residual_sugar      |    Double     | the amount of sugar remaining after fermentation stops|
+|                    |               |                                              |
++--------------------+---------------+----------------------------------------------+
+|chlorides           |    Double     | the amount of salt in the wine               |
++--------------------+---------------+----------------------------------------------+
+|free_sulfur_dioxide |    Double     | the free form of SO2 exists in equilibrium between molecular SO2| 
+|                    |               | (as a dissolved gas) and bisulfite ion; it prevents microbial growth and the oxidation of wine|
+|                    |               |                                              |
++--------------------+---------------+----------------------------------------------+
+|total_sulfur_dioxide|    Double     | amount of free and bound forms of S02; in low concentrations, SO2 is mostly undetectable in wine, but at free SO2 concentrations over 50 ppm,| 
+|                    |               | SO2 becomes evident in the nose and taste of wine|
+|                    |               |                                              |
++--------------------+---------------+----------------------------------------------+
+|density             |    Double     | the density of water is close to that of water depending on the percent alcohol and sugar content|
+|                    |               |                                              |
++--------------------+---------------+----------------------------------------------+
+|pH                  |    Double     | describes how acidic or basic a wine is on a scale from 0 (very acidic) to 14 (very basic); most wines are between 3-4 on the pH scale|
+|                    |               |                                              |
++--------------------+---------------+----------------------------------------------+
+|sulphates           |    Double     | a wine additive which can contribute to sulfur dioxide gas (S02) levels, wich acts as an antimicrobial and antioxidant|
+|                    |               |                                              |
++--------------------+---------------+----------------------------------------------+
+|alcohol             |    Double     | the percent alcohol content of the wine      |
++--------------------+---------------+----------------------------------------------+
+|quality             |    Double     | Score between (3-8)                          | 
++--------------------+---------------+----------------------------------------------+
+
+## Interactive table 
+```{r}
+datatable(wineRed)
+
+```
+
+```{r, echo=FALSE, include=FALSE}
+
+head(wineRed)
+
+wineRed <- rename_with(wineRed, ~ tolower(gsub(" ", "_", .x, fixed = TRUE)))
+
+get_dupes(wineRed)
+# We can see that we have 230 duplicated observations.
+# Let's remove them! 
+
+wineRed <- wineRed[!duplicated(wineRed), ]
+# New tibble with only non-duplicate observations.
+
+is.null(wineRed)
+# checking for null values 
+
+summary(wineRed)
+
+qualityCat <- cut(wineRed$quality, 
+                  breaks=c(0,4,5,6,7,8), 
+                  labels=c("undrinkable (2-4)",
+                  "pretty bad (5)",
+                  "fair, but has noticable flaws (6)",
+                  "quaffable (7)",
+                  "very good (8)"))
+```
+
+
+
+```{r}
+ggplot(data = wineRed, aes(x = qualityCat)) +
+  geom_bar(fill='light blue') +
+geom_text(
+     aes(label= scales::percent(after_stat(as.double(prop))), group=1),
+     stat='count', vjust = -0.3, 
+ ) 
+ 
+```
+
+#### Histogram shows us that wine quality between 7-8 is around 14% of our dataset, 40% is 6 and 46% between 2-5. 
+
+```{r}
+cor(wineRed[-1], wineRed$quality)
+
+```
+#### - quality has a large positive correlation with alcohol,
+#### a moderate positive correlation with sulphates 
+#### and a moderate negative correlation with volatile_acidity.
+``` {r}
+chart.Correlation(wineRed, histogram=TRUE, pch=19)
+```
+
+#### - It's fair to say that density and pH are normally
+#### distributed, which means observations have a high frequency near the mean.
+#### - fixed_acidity and citric_acid have a large positive correlation(0.67).
+#### - fixed_acidity and density have a large positive corrrelation(0.67).
+#### - fixed_acidity and pH have a large negative correlation(-0.68).
+#### - citric_acid and pH have a large negative correlation(-0.54).
+
+```{r, fig.width = 15, fig.height=15}
+featurePlot(x = wineRed[, 1:11], 
+            y = qualityCat, 
+            plot = "box", 
+            scales = list(y = list(relation="free"),
+                          x = list(rot = 90)),  
+            layout = c(3,4), 
+            auto.key = list(columns = 2))
+```
+
+#### all of the variables affect in increasing or decreasing the wine quality, excluding chlorides
+#### and residual_sugar as they have equal median for all qualities.
+
+## Conclusion 
+
+#### In conclusion I have found that wine quality is likely to be high due to the affect of the following      variables:   
+####              - high levels of alcohol results in high wine quality.
+####              - increasing sulphates and fixed_acidity will moderately increase wine quality.
+####              - low levels of volatile_acidity results in high wine quality.
+####              - Previously we mentioned that pH is negatively correlated with both fixed_acidity and citric_acid, which can tell us that either pH is responsible in the increase of                          citric_acid and fixed_acidity or both of these variables are responsible in the                          decrease in pH in high wine quality.  
+                  
+## Citation
+
+#### [Domenic V Cicchetti1, Arnold F Cicchetti2. Wine rating scales: Assessing their utility for producers, consumers, and oenologic researchers.Yale Home Office, North Branford, CT, USA; 2Director of National Accounts, Wine Warehouse, San Anselmo, CA, USA](https://pdfs.semanticscholar.org/9ffc/11cd9bbe3f715e0f536fe3b789a60b112397.pdf)
+#### [Adding percentage sign in ggplot ](https://stackoverflow.com/questions/40249943/adding-percentage-labels-to-a-bar-chart-in-ggplot2)
+
